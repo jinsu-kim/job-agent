@@ -1,0 +1,3 @@
+posting_fingerprint,posting_line_id,gold_class,gold_verdict
+REPLACE_WITH_REPORT_VALUE,P001,non_requirement,
+REPLACE_WITH_REPORT_VALUE,P002,required,satisfied
