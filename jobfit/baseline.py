@@ -19,7 +19,7 @@ BASELINE_SYSTEM_PROMPT = """당신은 채용공고와 이력서의 적합도를 
       "requirement_type": "required 또는 preferred",
       "text": "요건",
       "posting_line_ids": ["P001"],
-      "verdict": "satisfied, partial, unsatisfied, unjudgeable 중 하나",
+      "verdict": "satisfied, partial, unsatisfied 중 하나",
       "resume_line_ids": ["R001"],
       "explanation": "한 줄 설명"
     }

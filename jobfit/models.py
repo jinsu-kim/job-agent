@@ -14,8 +14,6 @@ class Verdict(StrEnum):
     SATISFIED = "satisfied"
     PARTIAL = "partial"
     UNSATISFIED = "unsatisfied"
-    UNJUDGEABLE = "unjudgeable"
-
 
 @dataclass(frozen=True)
 class DocumentLine:

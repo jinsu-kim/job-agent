@@ -106,16 +106,15 @@ class StateTests(unittest.TestCase):
         self.assertEqual(report["score"]["preferred_percent"], 0.0)
         self.assertEqual(report["score"]["overall_fit_percent"], 80.0)
 
-    def test_unjudgeable_has_no_official_score(self):
+    def test_incomplete_report_does_not_invent_judgments(self):
         state = make_state()
-        state.exclude_posting_lines(["P001", "P003", "P004"], "평가 제외")
-        required = state.record_requirement("required", "Python 경험", ["P002"])
-        search_for(state, required["requirement_id"])
-        state.record_judgment(
-            required["requirement_id"], "unjudgeable", [], "기간을 확인할 수 없음"
-        )
-        report = state.finalize_report()
+        requirement = state.record_requirement("required", "Python 경험", ["P002"])
+
+        report = state.incomplete_report("도구 호출 한도 초과")
+
         self.assertEqual(report["status"], "incomplete")
+        self.assertNotIn(requirement["requirement_id"], state.judgments)
+        self.assertIsNone(report["requirements"][0]["judgment"])
         self.assertIsNone(report["score"])
 
     def test_dispatch_rejects_internal_method(self):

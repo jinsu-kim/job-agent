@@ -19,8 +19,6 @@ def calculate_score(
     """Convert completed judgments into the public fit score."""
     if not requirements:
         return None
-    if any(item.verdict == Verdict.UNJUDGEABLE for item in judgments.values()):
-        return None
 
     scores: dict[RequirementType, list[float]] = {
         RequirementType.REQUIRED: [],

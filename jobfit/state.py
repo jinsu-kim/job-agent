@@ -246,25 +246,18 @@ class FitState:
         if errors:
             raise ToolError("; ".join(errors))
 
-        has_unjudgeable = any(
-            judgment.verdict == Verdict.UNJUDGEABLE for judgment in self.judgments.values()
+        self.final_report = self._build_report(
+            status="complete",
+            incomplete_reason=None,
         )
-        report_status = "incomplete" if has_unjudgeable else "complete"
-        reason = "판정 불가 요건이 있어 공식 종합 점수를 계산하지 않았습니다." if has_unjudgeable else None
-        self.final_report = self._build_report(status=report_status, incomplete_reason=reason)
         self.finalized = True
         return self.final_report
 
     def incomplete_report(self, reason: str) -> dict[str, Any]:
-        for requirement_id in self.requirements:
-            if requirement_id not in self.judgments:
-                self.judgments[requirement_id] = Judgment(
-                    requirement_id=requirement_id,
-                    verdict=Verdict.UNJUDGEABLE,
-                    resume_line_ids=[],
-                    explanation=reason,
-                )
-        self.final_report = self._build_report(status="incomplete", incomplete_reason=reason)
+        self.final_report = self._build_report(
+            status="incomplete",
+            incomplete_reason=reason,
+        )
         self.finalized = True
         return self.final_report
 

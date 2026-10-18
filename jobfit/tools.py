@@ -82,7 +82,7 @@ TOOL_DEFINITIONS = [
             "requirement_id": {"type": "string"},
             "verdict": {
                 "type": "string",
-                "enum": ["satisfied", "partial", "unsatisfied", "unjudgeable"],
+                "enum": ["satisfied", "partial", "unsatisfied"],
             },
             "resume_line_ids": {
                 "type": "array",
