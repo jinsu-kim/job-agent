@@ -103,18 +103,15 @@ class FitState:
         for existing in self.requirements.values():
             if existing.requirement_type == kind and " ".join(existing.text.lower().split()) == normalized:
                 raise ToolError(f"중복 요건입니다: {existing.requirement_id}")
-        claimed_lines = self._requirement_lines()
-        duplicated_lines = [line_id for line_id in line_ids if line_id in claimed_lines]
-        if duplicated_lines:
-            raise ToolError(
-                "하나의 공고 줄을 여러 요건으로 분할할 수 없습니다. "
-                f"이미 다른 요건에 사용된 줄: {duplicated_lines}"
-            )
 
         requirement_id = f"Q{len(self.requirements) + 1:03d}"
-        # The key must remain stable even when the LLM paraphrases requirement text.
-        # One source line can belong to only one requirement, so source IDs identify it.
-        key_payload = f"{kind.value}|{'|'.join(sorted(line_ids))}"
+        # 같은 공고 줄에서 분리된 여러 요건을 구분하기 위해
+        # 정규화된 요건 문구를 키에 포함한다.
+        key_payload = (
+            f"{kind.value}|"
+            f"{'|'.join(sorted(line_ids))}|"
+            f"{normalized}"
+        )
         requirement_key = hashlib.sha256(key_payload.encode("utf-8")).hexdigest()[:12]
         requirement = Requirement(
             requirement_id=requirement_id,

@@ -7,6 +7,13 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .alignment import (
+    LinePredictionMap,
+    line_classification,
+    line_predictions,
+    line_verdict,
+)
+
 
 def _load_reports(paths: list[str]) -> list[tuple[str, dict[str, Any]]]:
     loaded = []
@@ -23,31 +30,6 @@ def _read_csv(path: str | None) -> list[dict[str, str]]:
         return []
     with Path(path).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
-
-
-def _line_predictions(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Align predictions by immutable posting line ID, not LLM-created keys."""
-    result: dict[str, dict[str, Any]] = {}
-    for item in report.get("requirements", []):
-        judgment = item.get("judgment") or {}
-        group = tuple(sorted(item.get("posting_line_ids", [])))
-        for line_id in group:
-            result[line_id] = {
-                "classification": item.get("requirement_type"),
-                "verdict": judgment.get("verdict"),
-                "requirement_key": item.get("requirement_key"),
-                "group": group,
-                "evidence_line_ids": tuple(sorted(judgment.get("resume_line_ids", []))),
-            }
-    for item in report.get("excluded_posting_lines", []):
-        result[item["line_id"]] = {
-            "classification": "non_requirement",
-            "verdict": None,
-            "requirement_key": None,
-            "group": (item["line_id"],),
-            "evidence_line_ids": (),
-        }
-    return result
 
 
 def _ratio(values: list[bool]) -> float | None:
@@ -111,11 +93,11 @@ def _evaluate_system(
     evidence_labels: list[dict[str, str]],
 ) -> dict[str, Any]:
     grouped: dict[
-        str, list[tuple[str, dict[str, Any], dict[str, dict[str, Any]]]]
+        str, list[tuple[str, dict[str, Any], LinePredictionMap]]
     ] = defaultdict(list)
     for run_id, report in reports:
         grouped[report["posting_fingerprint"]].append(
-            (run_id, report, _line_predictions(report))
+            (run_id, report, line_predictions(report))
         )
 
     representative = {
@@ -138,7 +120,7 @@ def _evaluate_system(
         predicted = representative.get(posting, {}).get(line_id)
         present = predicted is not None
         line_coverage_checks.append(present)
-        predicted_class = None if predicted is None else predicted["classification"]
+        predicted_class = line_classification(predicted)
         class_correct = predicted_class == gold_class
         classification_checks.append(class_correct)
 
@@ -148,7 +130,7 @@ def _evaluate_system(
             requirement_recall_checks.append(predicted_as_requirement)
             false_exclusions.append(predicted_class == "non_requirement")
             if gold_verdict is not None:
-                verdict_correct = present and predicted.get("verdict") == gold_verdict
+                verdict_correct = present and line_verdict(predicted) == gold_verdict
                 verdict_checks.append(verdict_correct)
                 joint_checks.append(class_correct and verdict_correct)
         else:
@@ -170,18 +152,31 @@ def _evaluate_system(
             entries = [prediction.get(line_id) for _, _, prediction in runs]
             all_runs_line_presence.append(all(entry is not None for entry in entries))
             classifications = [
-                "missing" if entry is None else entry["classification"] for entry in entries
+                (("missing",) if entry is None else tuple(
+                    item["classification"] for item in entry
+                ))
+                for entry in entries
             ]
             verdicts = [
-                ("missing", None)
+                (("missing", None),)
                 if entry is None
-                else (entry["classification"], entry["verdict"])
+                else tuple(
+                    (
+                        item["requirement_key"],
+                        item["classification"],
+                        item["verdict"],
+                    )
+                    for item in entry
+                )
                 for entry in entries
             ]
             groups = [
-                ("missing",)
+                (("missing",),)
                 if entry is None
-                else (entry["classification"], *entry["group"])
+                else tuple(
+                    (item["classification"], *item["group"])
+                    for item in entry
+                )
                 for entry in entries
             ]
             classification_stability.append(len(set(classifications)) == 1)

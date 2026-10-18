@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent import OpenAICompatibleClient, run_agent
+from .alignment import line_predictions, requirements_by_key
 from .documents import remove_document_lines
 from .models import Document
 from .state import FitState
@@ -15,10 +16,6 @@ VERDICT_VALUE = {
     "partial": 0.5,
     "satisfied": 1.0,
 }
-
-
-def _by_key(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {item["requirement_key"]: item for item in report.get("requirements", [])}
 
 
 def run_removal_mutations(
@@ -46,6 +43,7 @@ def run_removal_mutations(
     if limit is not None:
         candidates = candidates[:limit]
     output_dir.mkdir(parents=True, exist_ok=True)
+    baseline_items = requirements_by_key(line_predictions(baseline_report))
 
     cases: list[dict[str, Any]] = []
     for index, target in enumerate(candidates, start=1):
@@ -69,22 +67,22 @@ def run_removal_mutations(
             json.dumps(state.trace, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
-        result_items = _by_key(report)
+        result_items = requirements_by_key(line_predictions(report))
         result_target = result_items.get(target["requirement_key"])
         baseline_value = VERDICT_VALUE[target["judgment"]["verdict"]]
         result_verdict = (
-            None if result_target is None or result_target.get("judgment") is None
-            else result_target["judgment"]["verdict"]
+            None if result_target is None else result_target.get("verdict")
         )
         result_value = VERDICT_VALUE.get(result_verdict)
 
         baseline_other = {
-            key: item.get("judgment", {}).get("verdict")
-            for key, item in _by_key(baseline_report).items()
+            key: item.get("verdict")
+            for key, item in baseline_items.items()
             if key != target["requirement_key"]
+            and not removed_ids.intersection(item.get("evidence_line_ids", ()))
         }
         result_other = {
-            key: item.get("judgment", {}).get("verdict")
+            key: item.get("verdict")
             for key, item in result_items.items()
             if key != target["requirement_key"]
         }

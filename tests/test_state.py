@@ -63,19 +63,16 @@ class StateTests(unittest.TestCase):
                 requirement["requirement_id"], "satisfied", ["R004"], "API 경험"
             )
 
-    def test_cannot_split_one_posting_line_into_multiple_requirements(self):
+    def test_allows_multiple_requirements_from_one_posting_line(self):
         state = make_state()
-        first = state.record_requirement("required", "Python 경험", ["P002"])
-        self.assertEqual(first["requirement_id"], "Q001")
-        with self.assertRaises(ToolError):
-            state.record_requirement("required", "프로그래밍 경험", ["P002"])
 
-    def test_requirement_key_is_stable_across_paraphrases(self):
-        state_a = make_state()
-        state_b = make_state()
-        first = state_a.record_requirement("required", "Python 경험", ["P002"])
-        second = state_b.record_requirement("required", "Python 개발 역량", ["P002"])
-        self.assertEqual(first["requirement_key"], second["requirement_key"])
+        python = state.record_requirement("required", "Python 경험", ["P002"])
+        pytorch = state.record_requirement("required", "PyTorch 경험", ["P002"])
+
+        self.assertEqual(python["posting_line_ids"], ["P002"])
+        self.assertEqual(pytorch["posting_line_ids"], ["P002"])
+        self.assertNotEqual(python["requirement_id"], pytorch["requirement_id"])
+        self.assertNotEqual(python["requirement_key"], pytorch["requirement_key"])
 
     def test_finalize_requires_full_posting_coverage(self):
         state = make_state()

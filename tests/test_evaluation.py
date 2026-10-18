@@ -146,6 +146,72 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(result["mismatched_evidence_sets"], 1)
             self.assertEqual(result["evidence_validity"], 1.0)
 
+    def test_stability_keeps_all_requirements_from_the_same_posting_line(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            labels = root / "labels.csv"
+            self._write_csv(
+                labels,
+                ["posting_fingerprint", "posting_line_id", "gold_class", "gold_verdict"],
+                [
+                    {
+                        "posting_fingerprint": "p1",
+                        "posting_line_id": "P001",
+                        "gold_class": "required",
+                        "gold_verdict": "partial",
+                    }
+                ],
+            )
+
+            reports = []
+            for run_id, python_verdict in [
+                ("run1", "satisfied"),
+                ("run2", "partial"),
+            ]:
+                reports.append(
+                    {
+                        "run_id": run_id,
+                        "status": "complete",
+                        "posting_fingerprint": "p1",
+                        "requirements": [
+                            {
+                                "requirement_key": "python",
+                                "requirement_type": "required",
+                                "text": "Python 경험",
+                                "posting_line_ids": ["P001"],
+                                "judgment": {
+                                    "verdict": python_verdict,
+                                    "resume_line_ids": ["R001"],
+                                },
+                            },
+                            {
+                                "requirement_key": "pytorch",
+                                "requirement_type": "required",
+                                "text": "PyTorch 경험",
+                                "posting_line_ids": ["P001"],
+                                "judgment": {
+                                    "verdict": "unsatisfied",
+                                    "resume_line_ids": [],
+                                },
+                            },
+                        ],
+                        "excluded_posting_lines": [],
+                        "score": {"overall_fit_percent": 50},
+                    }
+                )
+
+            paths = []
+            for index, value in enumerate(reports):
+                path = root / f"multi-{index}.json"
+                path.write_text(json.dumps(value), encoding="utf-8")
+                paths.append(str(path))
+
+            result = evaluate(str(labels), paths)["agent"]
+
+            self.assertEqual(result["line_classification_stability"], 1.0)
+            self.assertEqual(result["requirement_grouping_stability"], 1.0)
+            self.assertEqual(result["line_verdict_stability"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
